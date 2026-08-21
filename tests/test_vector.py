@@ -39,10 +39,10 @@ def _auth(**over):
 def _vec(**over):
     base = dict(
         vector_id="v001",
-        clock="DunedinPACE",
+        method="DunedinPACE",
         source_paper="Belsky et al. 2022 eLife",
         seed=21,
-        shape=(173, 12),
+        input_shape=(173, 12),
         declaration=_decl(),
         authority=_auth(),
     )

@@ -70,7 +70,13 @@ class Flag:
 
 @dataclass(frozen=True)
 class Declaration:
-    """The decisions a published paper usually leaves unstated.
+    """The decisions a published paper usually leaves unstated, for methylation.
+
+    Domain-specific. `Vector.declaration` accepts any frozen dataclass, so a
+    method from another field carries its own declaration type (see
+    `mfcc_vectors.MfccDeclaration`) rather than being forced through fields
+    that mean nothing to it. What every declaration shares is the contract,
+    not the schema: name the decisions the paper left open.
 
     Every field here exists because some implementation made a choice and
     did not write it down. Recording them is most of the point: two
@@ -118,11 +124,11 @@ class Vector:
     """One conformance case."""
 
     vector_id: str
-    clock: str
+    method: str  # "DunedinPACE" | "weighted UniFrac" | "MFCC" | ...
     source_paper: str
     seed: int
-    shape: tuple[int, int]  # (n_probes, n_samples)
-    declaration: Declaration
+    input_shape: tuple[int, ...]  # domain-specific; (n_probes, n_samples), (n_samples,), ...
+    declaration: Any  # any frozen dataclass; asdict() is all the manifest needs
     authority: Authority
     expectations: list[Expectation] = field(default_factory=list)
     flags: dict[str, Flag] = field(default_factory=dict)
@@ -137,10 +143,10 @@ class Vector:
         """
         return {
             "schema": self.schema,
-            "clock": self.clock,
+            "method": self.method,
             "source_paper": self.source_paper,
             "seed": self.seed,
-            "shape": list(self.shape),
+            "input_shape": list(self.input_shape),
             "declaration": asdict(self.declaration),
             "authority": asdict(self.authority),
         }
@@ -148,6 +154,25 @@ class Vector:
     @property
     def manifest_id(self) -> str:
         return content_id(self.manifest())
+
+    def to_dict(self) -> dict[str, Any]:
+        """The full published form: manifest, answers, and flags.
+
+        `manifest_id` is stored alongside so a reader can verify the identity
+        without reconstructing the manifest, and `vector_id` stays the human
+        handle. The two serve different purposes and neither replaces the
+        other: the id is what a bug report cites, the manifest hash is what
+        proves the question has not been edited since.
+        """
+        self.validate()
+        return {
+            "vector_id": self.vector_id,
+            "manifest_id": self.manifest_id,
+            "manifest": self.manifest(),
+            "expectations": [asdict(e) | {"result": e.result.value}
+                             for e in self.expectations],
+            "flags": {k: asdict(v) for k, v in sorted(self.flags.items())},
+        }
 
     def validate(self) -> None:
         """Reject vectors that would mislead. Called before serialization."""
