@@ -162,15 +162,32 @@ def test_without_the_clamp_mfcc_is_a_function_of_the_frame():
     """The core claim of the whole-clip-db-clamp vector, stated as a test.
 
     Same frames, different surrounding audio, no clamp: the answer must not
-    move at all. This is the property Davis & Mermelstein define and the one
-    both shipped libraries violate by default.
+    move. This is the property Davis & Mermelstein define and the one both
+    shipped libraries violate by default.
+
+    The bound is derived, not pinned. This assertion read `== 0.0` until CI
+    ran it on Linux, where it came back 1.78e-15 while staying exactly zero on
+    the authoring machine. Nothing is wrong with either result: `loud` is a
+    longer array, so the FFT and the mel matmul accumulate in a different
+    order, and floating-point addition is not associative. Exact equality here
+    was a tolerance measured on one machine, which is the failure this project
+    exists to document -- so it gets the same treatment as any other vector.
+
+    tol = 16 * eps64 * max|a|. The 16 is the same accumulation factor the MFCC
+    vectors use (the sqrt(257) bound for the mel matmul); eps64 * max|a| is one
+    ulp at the magnitude of the coefficients. The clamped case next door moves
+    by more than 1.0, roughly twelve orders of magnitude above this bound, so
+    the test still separates the two cases completely.
     """
     n = 160 * 24 + 512
     quiet = signal("quiet_noise", n)
     loud = np.concatenate([quiet, 50.0 * np.random.default_rng(1).standard_normal(1600)])
     a = _mfcc(quiet)
     b = _mfcc(loud)[:, : a.shape[1]]
-    assert np.abs(a - b).max() == 0.0
+    tol = 16.0 * np.finfo(np.float64).eps * np.abs(a).max()
+    residual = np.abs(a - b).max()
+    assert residual <= tol, f"{residual} exceeds derived bound {tol}"
+    assert residual < 1.0  # the clamped case moves by more than this
 
 
 def test_with_the_clamp_it_is_not():
