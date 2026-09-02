@@ -96,9 +96,36 @@ pip install librosa torchaudio
 python harness/check_mfcc_libraries.py
 ```
 
+### Promax
+
+`vectors/promax_kaiser-normalization.json` pins the oblique rotation most
+psychology papers use, under both readings of a choice Hendrickson & White
+1964 left open: whether the varimax stage first rescales each variable to unit
+communality (Kaiser's *normal* varimax). Both are `acceptable`. What the
+vector catches is an implementation that accepts the switch and ignores it.
+`psych::Promax` in R declares `normalize` and never reads it, and between
+psych 2.6.3 and 2.6.5 its effective default flipped from normalized to
+un-normalized with no NEWS entry. On psych 2.6.5 the harness reports:
+
+```
+stats::promax                  -> normalized     4.441e-16  PASS
+psych::Promax normalize=FALSE  -> un-normalized  7.397e-06  PASS
+psych::Promax normalize=TRUE   -> normalized     1.381e-03  FAIL  [DeadNormalizeArgument]
+```
+
+The third line is the finding. A passing third line is how a future release
+proves the argument is wired up. The reference is a line-for-line port of R's
+own `stats::promax`, matching it to 4e-16; the input matrix is stored in the
+vector so an R user can run it without numpy.
+
+```bash
+Rscript -e 'install.packages(c("psych", "GPArotation"))'
+python harness/check_promax_r.py
+```
+
 ## Upstream record
 
-The vectors exist to find things. Status as of 2026-08-28:
+The vectors exist to find things. Status as of 2026-09-01:
 
 | Reference | What | Status |
 |---|---|---|
@@ -108,6 +135,7 @@ The vectors exist to find things. Status as of 2026-08-28:
 | [librosa#2095](https://github.com/librosa/librosa/pull/2095) | Expose `top_db` on features that call `power_to_db` | Open |
 | [cggh/scikit-allel#456](https://github.com/cggh/scikit-allel/issues/456) | `patterson_fst` is algebraically identical to `hudson_fst`; proof in `proofs/` | Open |
 | [yiluyucheng/dnaMethyAge#21](https://github.com/yiluyucheng/dnaMethyAge/issues/21) | DunedinPACE scoring forms shown equivalent; proof in `proofs/` | Open |
+| psych `Promax` (reported to the maintainer by email 2026-08-21; psych has no public tracker) | `normalize` argument is dead, and the effective default flipped between 2.6.3 and 2.6.5 with no NEWS entry; one-token fix and vector supplied | Acknowledged 2026-09-01, awaiting review |
 
 Two findings of mine were downgraded on review — one was a units convention
 rather than a defect, one had a legitimate numerical cause. Both corrections
@@ -116,7 +144,7 @@ divergence from an apparent one is worse than none.
 
 ## Status
 
-Early. 80 tests pass; four MFCC vectors ship. The format is settled enough to
+Early. 104 tests pass; four MFCC vectors and one Promax vector ship. The format is settled enough to
 build on and the coverage is not yet broad enough to depend on.
 
 ## License
