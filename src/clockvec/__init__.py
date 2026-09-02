@@ -19,6 +19,7 @@ __version__ = "0.0.1"
 
 from clockvec.generate import bimodal_betas, replicate_pair, with_missing
 from clockvec.mfcc import MelScale, mel_filterbank, mfcc
+from clockvec.promax import canonicalize, promax, varimax
 from clockvec.vector import (
     Authority,
     Declaration,
@@ -45,4 +46,7 @@ __all__ = [
     "content_id",
     "mel_filterbank",
     "mfcc",
+    "canonicalize",
+    "promax",
+    "varimax",
 ]
